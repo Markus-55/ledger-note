@@ -72,4 +72,16 @@ contract Notepad {
             userNotes[msg.sender][_oldTitle].note = _updatedNote;
         }
     }
+
+    function deleteNote(string memory _title) external noteExists(msg.sender, _title) {
+        delete userNotes[msg.sender][_title];
+
+        for(uint256 i = 0; i < userNoteByTitles[msg.sender].length; ++i) {
+            if(keccak256(bytes(userNoteByTitles[msg.sender][i])) == keccak256(bytes(_title))) {
+                userNoteByTitles[msg.sender][i] = userNoteByTitles[msg.sender][userNoteByTitles[msg.sender].length - 1];
+                userNoteByTitles[msg.sender].pop();
+                break;
+            }
+        }
+    }
 }
