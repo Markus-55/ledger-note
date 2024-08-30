@@ -55,5 +55,21 @@ contract Notepad {
         }
 
         return (_ids, _owner, _titles, _notes);
-    } 
+    }
+
+    function updateNote(string memory _oldTitle, string memory _newTitle, string memory _updatedNote) external noteExists(msg.sender, _oldTitle) {
+        if(keccak256(bytes(_oldTitle)) != keccak256(bytes(_newTitle))) {
+            
+            userNotes[msg.sender][_newTitle] = NoteData(noteCount, msg.sender, _newTitle, _updatedNote, true);
+            delete userNotes[msg.sender][_oldTitle];
+            for(uint256 i = 0; i < userNoteByTitles[msg.sender].length; i++) {
+                if(keccak256(bytes(userNoteByTitles[msg.sender][i])) == keccak256(bytes(_oldTitle))) {
+                    userNoteByTitles[msg.sender][i] = _newTitle;
+                    break;
+                }
+            }
+        } else {
+            userNotes[msg.sender][_oldTitle].note = _updatedNote;
+        }
+    }
 }
