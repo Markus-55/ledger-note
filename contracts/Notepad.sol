@@ -10,10 +10,20 @@ contract Notepad {
         bool exist;
     }
 
+    struct SharedNoteData {
+        uint256 id;
+        address owner;
+        address sharedTo;
+        string title;
+        string note;
+    }
+
     uint256 private noteCount;
 
     mapping(address => mapping(string => NoteData)) userNotes;
     mapping(address => string[]) userNoteByTitles;
+    mapping(address => mapping(address => SharedNoteData[])) sharedNotes;
+    mapping(address => mapping(address => uint256[])) sharedNotesIndex;
 
     modifier noteDoesNotExist(address _user, string memory _title) {
         require(
