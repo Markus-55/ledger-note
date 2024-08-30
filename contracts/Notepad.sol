@@ -25,6 +25,8 @@ contract Notepad {
     mapping(address => mapping(address => SharedNoteData[])) sharedNotes;
     mapping(address => mapping(address => uint256[])) sharedNotesIndex;
 
+    event noteShared(uint256 _id, address _owner, address _to);
+
     modifier noteDoesNotExist(address _user, string memory _title) {
         require(
             !userNotes[msg.sender][_title].exist,
@@ -94,4 +96,27 @@ contract Notepad {
             }
         }
     }
+
+    function shareNote(uint256 _id, address _to) external {
+        string memory title = userNoteByTitles[msg.sender][_id];
+        
+        NoteData storage noteData = userNotes[msg.sender][title];
+        require(noteData.owner == msg.sender, "You do not own this note");
+        
+        // Create shared note data
+        SharedNoteData memory sharedNote = SharedNoteData({
+            id: _id, 
+            owner: msg.sender,
+            sharedTo: _to, 
+            title: noteData.title,
+            note: noteData.note
+        });
+
+        sharedNotes[_to][msg.sender].push(sharedNote);
+        sharedNotesIndex[_to][msg.sender].push(sharedNotes[_to][msg.sender].length);
+
+        emit noteShared(_id, msg.sender, _to);
+    }
+
+    
 }
