@@ -118,5 +118,23 @@ contract Notepad {
         emit noteShared(_id, msg.sender, _to);
     }
 
-    
+    function getSharedNotes(address _noteOwner) external view returns (uint256[] memory _ids, address _owner, address _sharedTo, string[] memory _titles, string[] memory _notes) {
+        uint256 countSharedNotes = sharedNotesIndex[msg.sender][_noteOwner].length;
+
+        _ids = new uint256[](countSharedNotes);
+        _titles = new string[](countSharedNotes);
+        _notes = new string[](countSharedNotes);
+
+        SharedNoteData memory sharedNoteData;
+        for(uint256 i = 0; i < countSharedNotes; ++i) {
+            sharedNoteData = sharedNotes[msg.sender][_noteOwner][i];
+            
+            _ids[i] = sharedNoteData.id;
+            _titles[i] = sharedNoteData.title;
+            _notes[i] = sharedNoteData.note;
+        }
+        require(msg.sender == sharedNoteData.sharedTo, "You do not have access to these notes");
+
+        return (_ids, _noteOwner, msg.sender, _titles, _notes);
+    } 
 }
