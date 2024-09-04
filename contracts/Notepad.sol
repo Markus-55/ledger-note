@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract DigitalNotebook {
     struct Note {
@@ -13,6 +15,8 @@ contract DigitalNotebook {
     mapping(address => uint256[]) private userNotes;
     mapping(uint256 => bool) private noteExists;
     uint256 private noteCounter;
+
+    constructor(address initialOwner) Ownable(initialOwner) {}
 
     event NoteCreated(uint256 noteId, address creator);
     event NoteDeleted(uint256 noteId, address creator);
@@ -128,5 +132,13 @@ contract DigitalNotebook {
         note.sharedWith[_addressToRemove] = false;
 
         emit NoteSharingRemoved(_noteId, _addressToRemove);
+    }
+
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
     }
 }
