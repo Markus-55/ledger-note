@@ -72,4 +72,61 @@ contract DigitalNotebook {
 
         emit NoteDeleted(_noteId, msg.sender);
     }
+
+        function updateSharingSettings(
+        uint256 _noteId,
+        bool _isPublic,
+        address[] memory _sharedWith
+    ) public noteExist(_noteId) noteNotDeleted(_noteId) {
+        Note storage note = notes[_noteId];
+        require(
+            note.creator == msg.sender,
+            "Only the creator can update sharing settings"
+        );
+        note.isPublic = _isPublic;
+
+        for (uint256 i = 0; i < _sharedWith.length; i++) {
+            note.sharedWith[_sharedWith[i]] = true;
+        }
+
+        emit NoteSharingUpdated(_noteId, _isPublic, _sharedWith);
+    }
+
+    function getSharedNote(
+        uint256 _noteId
+    )
+        public
+        view
+        noteExist(_noteId)
+        noteNotDeleted(_noteId)
+        returns (string memory)
+    {
+        Note storage note = notes[_noteId];
+        require(
+            note.creator == msg.sender ||
+                note.isPublic ||
+                note.sharedWith[msg.sender],
+            "You do not have access to this note"
+        );
+        return note.content;
+    }
+
+    function removeSharedAddress(
+        uint256 _noteId,
+        address _addressToRemove
+    ) public noteExist(_noteId) noteNotDeleted(_noteId) {
+        Note storage note = notes[_noteId];
+        require(
+            note.creator == msg.sender,
+            "Only the creator can remove sharing addresses"
+        );
+
+        require(
+            note.sharedWith[_addressToRemove],
+            "Address is not shared with this note"
+        );
+        note.sharedWith[_addressToRemove] = false;
+
+        emit NoteSharingRemoved(_noteId, _addressToRemove);
+    }
 }
