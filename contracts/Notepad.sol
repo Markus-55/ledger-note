@@ -1,140 +1,75 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity ^0.8.0;
 
-contract Notepad {
-    struct NoteData {
-        uint256 id;
-        address owner;
-        string title;
-        string note;
-        bool exist;
+contract DigitalNotebook {
+    struct Note {
+        string content;
+        address creator;
+        bool isPublic;
+        mapping(address => bool) sharedWith;
     }
 
-    struct SharedNoteData {
-        uint256 id;
-        address owner;
-        address sharedTo;
-        string title;
-        string note;
+    mapping(uint256 => Note) private notes;
+    mapping(address => uint256[]) private userNotes;
+    mapping(uint256 => bool) private noteExists;
+    uint256 private noteCounter;
+
+    event NoteCreated(uint256 noteId, address creator);
+    event NoteDeleted(uint256 noteId, address creator);
+    event NoteSharingUpdated(
+        uint256 noteId,
+        bool isPublic,
+        address[] sharedWith
+    );
+    event NoteSharingRemoved(uint256 noteId, address removedFrom);
+
+    modifier noteExist(uint256 _noteId) {
+        require(_noteId > 0 && _noteId <= noteCounter, "Note does not exist");
+        _;
     }
 
-    uint256 private noteCount;
+    modifier noteNotDeleted(uint256 _noteId) {
+        require(noteExists[_noteId], "Note has been deleted");
+        _;
+    }
 
-    mapping(address => mapping(string => NoteData)) userNotes;
-    mapping(address => string[]) userNoteByTitles;
-    mapping(address => mapping(address => SharedNoteData[])) sharedNotes;
-    mapping(address => mapping(address => uint256[])) sharedNotesIndex;
+    function addNote(string memory _content) public {
+        noteCounter++;
+        Note storage newNote = notes[noteCounter];
+        newNote.content = _content;
+        newNote.creator = msg.sender;
+        newNote.isPublic = false;
+        userNotes[msg.sender].push(noteCounter);
+        noteExists[noteCounter] = true;
 
-    event noteShared(uint256 _id, address _owner, address _to);
+        emit NoteCreated(noteCounter, msg.sender);
+    }
 
-    modifier noteDoesNotExist(address _user, string memory _title) {
+    function getUserNoteAmount() public view returns (uint256[] memory) {
+        return userNotes[msg.sender];
+    }
+
+    function deleteNote(
+        uint256 _noteId
+    ) public noteExist(_noteId) noteNotDeleted(_noteId) {
+        Note storage note = notes[_noteId];
         require(
-            !userNotes[msg.sender][_title].exist,
-            "Note does already exist"
+            note.creator == msg.sender,
+            "Only the creator can delete this note"
         );
-        _;
-    }
 
-    modifier noteExists(address _user, string memory _title) {
-        require(userNotes[msg.sender][_title].exist, "Note does not exist");
-        _;
-    }
+        delete notes[_noteId];
+        noteExists[_noteId] = false;
 
-    function addNote(string memory _title, string memory _note) public noteDoesNotExist(msg.sender, _title) {
-        ++noteCount;
-        userNotes[msg.sender][_title] = NoteData(noteCount, msg.sender, _title, _note, true);
-        userNoteByTitles[msg.sender].push(_title);
-    }
-
-    function getUserNoteCount() external view returns (uint256) {
-        return userNoteByTitles[msg.sender].length;
-    }
-
-    function getUserNotes() external view returns (uint256[] memory _ids, address _owner, string[] memory _titles, string[] memory _notes) {
-        uint256 countNotes = userNoteByTitles[msg.sender].length;
-        _ids = new uint256[](countNotes);
-        _titles = new string[](countNotes);
-        _notes = new string[](countNotes);
-
-        for(uint256 i = 0; i < countNotes; ++i) {
-            string memory title = userNoteByTitles[msg.sender][i];
-            NoteData storage noteData = userNotes[msg.sender][title];
-            
-            _ids[i] = noteData.id;
-            _owner = noteData.owner;
-            _titles[i] = noteData.title;
-            _notes[i] = noteData.note;
-        }
-
-        return (_ids, _owner, _titles, _notes);
-    }
-
-    function updateNote(string memory _oldTitle, string memory _newTitle, string memory _updatedNote) external noteExists(msg.sender, _oldTitle) {
-        if(keccak256(bytes(_oldTitle)) != keccak256(bytes(_newTitle))) {
-            
-            userNotes[msg.sender][_newTitle] = NoteData(noteCount, msg.sender, _newTitle, _updatedNote, true);
-            delete userNotes[msg.sender][_oldTitle];
-            for(uint256 i = 0; i < userNoteByTitles[msg.sender].length; i++) {
-                if(keccak256(bytes(userNoteByTitles[msg.sender][i])) == keccak256(bytes(_oldTitle))) {
-                    userNoteByTitles[msg.sender][i] = _newTitle;
-                    break;
-                }
-            }
-        } else {
-            userNotes[msg.sender][_oldTitle].note = _updatedNote;
-        }
-    }
-
-    function deleteNote(string memory _title) external noteExists(msg.sender, _title) {
-        delete userNotes[msg.sender][_title];
-
-        for(uint256 i = 0; i < userNoteByTitles[msg.sender].length; ++i) {
-            if(keccak256(bytes(userNoteByTitles[msg.sender][i])) == keccak256(bytes(_title))) {
-                userNoteByTitles[msg.sender][i] = userNoteByTitles[msg.sender][userNoteByTitles[msg.sender].length - 1];
-                userNoteByTitles[msg.sender].pop();
+        uint256[] storage userNoteList = userNotes[msg.sender];
+        for (uint256 i = 0; i < userNoteList.length; i++) {
+            if (userNoteList[i] == _noteId) {
+                userNoteList[i] = userNoteList[userNoteList.length - 1];
+                userNoteList.pop();
                 break;
             }
         }
+
+        emit NoteDeleted(_noteId, msg.sender);
     }
-
-    function shareNote(uint256 _id, address _to) external {
-        string memory title = userNoteByTitles[msg.sender][_id];
-        
-        NoteData storage noteData = userNotes[msg.sender][title];
-        require(noteData.owner == msg.sender, "You do not own this note");
-        
-        // Create shared note data
-        SharedNoteData memory sharedNote = SharedNoteData({
-            id: _id, 
-            owner: msg.sender,
-            sharedTo: _to, 
-            title: noteData.title,
-            note: noteData.note
-        });
-
-        sharedNotes[_to][msg.sender].push(sharedNote);
-        sharedNotesIndex[_to][msg.sender].push(sharedNotes[_to][msg.sender].length);
-
-        emit noteShared(_id, msg.sender, _to);
-    }
-
-    function getSharedNotes(address _noteOwner) external view returns (uint256[] memory _ids, address _owner, address _sharedTo, string[] memory _titles, string[] memory _notes) {
-        uint256 countSharedNotes = sharedNotesIndex[msg.sender][_noteOwner].length;
-
-        _ids = new uint256[](countSharedNotes);
-        _titles = new string[](countSharedNotes);
-        _notes = new string[](countSharedNotes);
-
-        SharedNoteData memory sharedNoteData;
-        for(uint256 i = 0; i < countSharedNotes; ++i) {
-            sharedNoteData = sharedNotes[msg.sender][_noteOwner][i];
-            
-            _ids[i] = sharedNoteData.id;
-            _titles[i] = sharedNoteData.title;
-            _notes[i] = sharedNoteData.note;
-        }
-        require(msg.sender == sharedNoteData.sharedTo, "You do not have access to these notes");
-
-        return (_ids, _noteOwner, msg.sender, _titles, _notes);
-    } 
 }
