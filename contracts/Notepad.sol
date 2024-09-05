@@ -37,6 +37,10 @@ contract DigitalNotebook {
         _;
     }
 
+    fallback() external {
+        revert("Fallback function: Call a function that exists!");
+    }
+
     function addNote(string memory _content) public {
         noteCounter++;
         Note storage newNote = notes[noteCounter];
