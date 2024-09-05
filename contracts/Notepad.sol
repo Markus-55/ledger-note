@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.24;
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -46,6 +46,7 @@ contract DigitalNotebook {
         userNotes[msg.sender].push(noteCounter);
         noteExists[noteCounter] = true;
 
+        assert(keccak256(bytes(_content)) == keccak256(bytes(newNote.content)));
         emit NoteCreated(noteCounter, msg.sender);
     }
 
@@ -57,10 +58,7 @@ contract DigitalNotebook {
         uint256 _noteId
     ) public noteExist(_noteId) noteNotDeleted(_noteId) {
         Note storage note = notes[_noteId];
-        require(
-            note.creator == msg.sender,
-            "Only the creator can delete this note"
-        );
+        if(note.creator != msg.sender) revert NotCreator(msg.sender);
 
         delete notes[_noteId];
         noteExists[_noteId] = false;
@@ -77,7 +75,7 @@ contract DigitalNotebook {
         emit NoteDeleted(_noteId, msg.sender);
     }
 
-        function updateSharingSettings(
+    function updateSharingSettings(
         uint256 _noteId,
         bool _isPublic,
         address[] memory _sharedWith
@@ -125,10 +123,10 @@ contract DigitalNotebook {
             "Only the creator can remove sharing addresses"
         );
 
-        require(
-            note.sharedWith[_addressToRemove],
-            "Address is not shared with this note"
-        );
+        if (!note.sharedWith[_addressToRemove]) {
+            revert("Address is not shared with this note");
+        }
+
         note.sharedWith[_addressToRemove] = false;
 
         emit NoteSharingRemoved(_noteId, _addressToRemove);
