@@ -3,7 +3,7 @@ pragma solidity 0.8.24;
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract DigitalNotebook {
+contract DigitalNotebook is Pausable, Ownable {
     struct Note {
         string content;
         address creator;
@@ -15,6 +15,8 @@ contract DigitalNotebook {
     mapping(address => uint256[]) private userNotes;
     mapping(uint256 => bool) private noteExists;
     uint256 private noteCounter;
+
+    error NotCreator(address caller);
 
     constructor(address initialOwner) Ownable(initialOwner) {}
 
