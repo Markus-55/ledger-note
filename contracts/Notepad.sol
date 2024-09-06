@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
-import "@openzeppelin/contracts/utils/Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract DigitalNotebook is Pausable, Ownable {
+contract Notepad {
     struct Note {
         string content;
         address creator;
@@ -15,10 +13,13 @@ contract DigitalNotebook is Pausable, Ownable {
     mapping(address => uint256[]) private userNotes;
     mapping(uint256 => bool) private noteExists;
     uint256 private noteCounter;
+    address immutable owner;
 
     error NotCreator(address caller);
 
-    constructor(address initialOwner) Ownable(initialOwner) {}
+    constructor() {
+      owner = msg.sender;
+    }
 
     event NoteCreated(uint256 noteId, address creator);
     event NoteDeleted(uint256 noteId, address creator);
@@ -84,12 +85,13 @@ contract DigitalNotebook is Pausable, Ownable {
     function updateSharingSettings(
         uint256 _noteId,
         bool _isPublic,
-        address[] memory _sharedWith
+        address[] calldata _sharedWith
     ) public noteExist(_noteId) noteNotDeleted(_noteId) {
         Note storage note = notes[_noteId];
         require(
-            note.creator == msg.sender,
-            "Only the creator can update sharing settings"
+            note.creator == msg.sender ||
+            owner == msg.sender,
+            "Only the creator or contract owner can update sharing settings"
         );
         note.isPublic = _isPublic;
 
@@ -111,7 +113,7 @@ contract DigitalNotebook is Pausable, Ownable {
     {
         Note storage note = notes[_noteId];
         require(
-            note.creator == msg.sender ||
+                note.creator == msg.sender ||
                 note.isPublic ||
                 note.sharedWith[msg.sender],
             "You do not have access to this note"
@@ -136,13 +138,5 @@ contract DigitalNotebook is Pausable, Ownable {
         note.sharedWith[_addressToRemove] = false;
 
         emit NoteSharingRemoved(_noteId, _addressToRemove);
-    }
-
-    function pause() public onlyOwner {
-        _pause();
-    }
-
-    function unpause() public onlyOwner {
-        _unpause();
     }
 }
