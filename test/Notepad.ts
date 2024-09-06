@@ -140,7 +140,7 @@ describe("Notepad Contract", function () {
 
     it("Should allow adding a note with maximum character limit", async function () {
       const { notepad, user1 } = await deployNotepadFixture();
-      const longNote = "A".repeat(1024); // Assuming 1024 is the max length for a note.
+      const longNote = "A".repeat(1024);
       await notepad.connect(user1).addNote(longNote);
       expect(await notepad.connect(user1).getSharedNote(1)).to.equal(longNote);
     });
@@ -166,6 +166,29 @@ describe("Notepad Contract", function () {
       expect(selectivelySharedNote).to.equal("Publicly and selectively shared");
     });
   });
+
+  describe("getUserNoteAmount", function () {
+    it("Should return the correct note amount for a user", async function () {
+      const { notepad, user1 } = await deployNotepadFixture();
+
+      await notepad.connect(user1).addNote("First note");
+      await notepad.connect(user1).addNote("Second note");
+
+      const userNoteIds = await notepad.connect(user1).getUserNoteAmount();
+
+      expect(userNoteIds.length).to.equal(2);
+      expect(userNoteIds[0]).to.equal(1);
+      expect(userNoteIds[1]).to.equal(2);
+    });
+
+    it("Should return an empty array if the user has no notes", async function () {
+      const { notepad, user1 } = await deployNotepadFixture();
+
+      const userNoteIds = await notepad.connect(user1).getUserNoteAmount();
+      expect(userNoteIds.length).to.equal(0);
+    });
+  });
+
 
   describe("Sharing Settings", function () {
     it("Should allow the creator to update sharing settings", async function () {
@@ -194,7 +217,7 @@ describe("Notepad Contract", function () {
 
 
     });
-    
+
     it("Only creator or contract owner should be allowed to change settings", async function () {
       const { notepad, owner, user1, user2 } = await deployNotepadFixture();
 
@@ -308,6 +331,28 @@ describe("Notepad Contract", function () {
       );
     });
   });
+
+  describe("getSharedNote", function () {
+    it("Should allow the creator to view their own note", async function () {
+      const { notepad, user1 } = await deployNotepadFixture();
+
+      await notepad.connect(user1).addNote("Private note");
+
+      const noteContent = await notepad.connect(user1).getSharedNote(1);
+      expect(noteContent).to.equal("Private note");
+    });
+
+    it("Should allow a shared user to view the note", async function () {
+      const { notepad, user1, user2 } = await deployNotepadFixture();
+
+      await notepad.connect(user1).addNote("Shared note");
+      await notepad.connect(user1).updateSharingSettings(1, false, [user2.address]);
+
+      const noteContent = await notepad.connect(user2).getSharedNote(1);
+      expect(noteContent).to.equal("Shared note");
+    });
+  });
+
 
   describe("Access Controls", function () {
     it("Should restrict access to note if not shared or public", async function () {
